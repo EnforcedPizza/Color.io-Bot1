@@ -3,12 +3,16 @@ const client = new Discord.Client();
 
 const { spawn } = require('child_process');
 const fs = require('fs');
+const getColors = require('get-image-colors')
+const request = require('request').defaults({ encoding: null });
+const fileType = require('file-type');
 
 const config = require("./config.json");
 const generate_embed = require("./generate_simple_embed.js");
 const converter = require('./color_converter/main.js');
 const convert = new converter();
 const adobe_palettes = require('./palettes.json');
+
 
 client.on("ready", () => {
   console.log(`Bot has started, with ${client.users.size} users, in ${client.channels.size} channels of ${client.guilds.size} guilds.`); 
@@ -26,7 +30,7 @@ client.on("message", async message => {
     const command = args.shift().toLowerCase();
 
     if(user_cooldowns.has(message.author.id)){
-        if(command == 'random' || command == 'palette' || command == 'random'){
+        if(command == 'random' || command == 'palette' || command == 'random' || command == 'genpalette' || command == 'generatepalette'){
             if(new Date().getTime() - user_cooldowns.get(message.author.id) > 2000){
                 user_cooldowns.set(message.author.id, new Date().getTime())
             } else {
@@ -57,6 +61,13 @@ client.on("message", async message => {
                     '  > c!palette hex'
             },
             {
+                'name': 'c!genpalette <link>',
+                'value': 
+                    '  * Generates palette from image\n' +
+                    '  - <link> Valid image link\n' +
+                    '  > c!genpalette https://annsflowersyoakum.com/wp-content/uploads/interior1.jpg'
+            },
+            {
                 'name': 'c!convert <input> <desired output> <color>',
                 'value': 
                     '  * Converts color formats to each other\n' +
@@ -81,13 +92,12 @@ client.on("message", async message => {
                     '  > c!random hex'
             },
             {
-                'name': 'Supported color types:',
-                'value': '  - hex, rgb, int, hsl, hsv, cmyk'
-            }
-            ,
-            {
                 'name': 'c!formathelp',
                 'value': '  - View specific formatting for each color format'
+            },
+            {
+                'name': 'Supported color types:',
+                'value': '  - hex, rgb, int, hsl, hsv, cmyk'
             }
         ]
         let embed = {
@@ -359,6 +369,73 @@ client.on("message", async message => {
             let error_embed = await generate_embed('Improper command use', 'Correct usage is c!random <input>\nCheck for **typos** as well');
             message.channel.send(error_embed).catch(err => console.log(err));
         }
+    }
+
+    else if(command == 'genpalette' || command == 'generatepalette'){
+        let fetching_embed = await generate_embed('Fetching Image', 'Please wait...');
+        message.channel.send(fetching_embed).catch(err => console.log(err));
+
+        request.get(args[0], async function (err, res, body) {
+            if(err){
+                let error_embed = await generate_embed('Internal error', 'Try again later');
+                message.channel.send(error_embed).catch(err => console.log(err));
+                return;
+            }
+            let file_mime_raw = fileType(body), file_mime;
+            if(file_mime_raw != null) {
+                file_mime = file_mime_raw.mime;
+            } else {
+                let error_embed = await generate_embed('Invalid Image Link', 'Make sure your link is an image link');
+                message.channel.send(error_embed).catch(err => console.log(err));
+                return;
+            }
+
+            if(file_mime != false){
+                getColors(body, file_mime).then(colors => {
+                    let palette = []
+                    colors.forEach(color => {
+                        let values = color._rgb.slice(0, 3);
+                        palette.push({
+                            r: values[0],
+                            g: values[1],
+                            b: values[2],
+                        });
+                    });
+
+                    let process = spawn(`python`, ['palette_5.py', palette[0].r, palette[0].g, palette[0].b, palette[1].r, palette[1].g, palette[1].b, palette[2].r, palette[2].g, palette[2].b, palette[3].r, palette[3].g, palette[3].b, palette[4].r, palette[4].g, palette[4].b, message.author.id]); 
+                    let error = false;
+                
+                    process.stderr.on('data', function(data) {
+                        message.channel.send(`\`\`\`Error:\n${data.toString()}\`\`\``);
+                        error = true;
+                        fs.unlink(`./temp/${message.author.id}.png`, (err) => {
+                            if(err) console.log(err);
+                        });
+                        return;
+                    });
+        
+                    process.stdout.on('end', async function() {
+                        if(error) return;
+                        let color_embed = await generate_embed(`Colors from ${args[0]}:`, 'Hex: ' + colors.join(', ').toUpperCase().replace(/#/ig, ''));
+                        message.channel.send({
+                            file: `./temp/${message.author.id}.png`
+                        }).then(() => {
+                            message.channel.send(color_embed).then(() => {
+                                fs.unlink(`./temp/${message.author.id}.png`, (err) => {
+                                    if(err) console.log(err);
+                                });
+                            }).catch(err => console.log(err));
+                        }).catch(err => console.log(err));
+                    });
+                }).catch(async err => {
+                    let error_embed = await generate_embed('Internal Error', 'Make sure your link is an image link and try again later\nNote this feature is experimental and not all images work');
+                    message.channel.send(error_embed).catch(err => console.log(err));
+                });
+            } else {
+                let error_embed = await generate_embed('Invalid Image Link', 'Make sure your link is an image link');
+                message.channel.send(error_embed).catch(err => console.log(err));
+            }
+        });
     }
 });
 
