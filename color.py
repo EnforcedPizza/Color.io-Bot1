@@ -7,5 +7,5 @@ b = sys.argv[3]
 token = sys.argv[4]
 
 img = Image.new('RGB', (256, 256), (int(r), int(g), int(b)))
-img.save('./' + str(token) + '.png')
+img.save('./temp/' + str(token) + '.png')
 print('done')

@@ -5,10 +5,11 @@ let p = {
     palettes: []
 };
 
-fs.readdir('./Color\ Images/urban/', (err, data) => {
+let index = 0;
+fs.readdir('./Color\ Images/all_flower_images/', (err, data) => {
     data.map(file => {
-        getColors('./Color\ Images/urban/' + file).then(colors => {
-            console.log(file);
+        getColors('./Color\ Images/all_flower_images/' + file).then(colors => {
+            //console.log(file);
             let palette = []
             colors.forEach(color => {
                 let values = color._rgb.slice(0, 3);
@@ -20,8 +21,10 @@ fs.readdir('./Color\ Images/urban/', (err, data) => {
             });
             p.palettes.push(palette);
 
-            fs.writeFile('./color_palettes.json', JSON.stringify(p, null, 4), (err) => {
-
+            console.log(index);
+            index++;
+            fs.writeFile('./color_palettes_all.json', JSON.stringify(p, null, 4), (err) => {
+                
             });
         }).catch(err => console.log(err))
     })
