@@ -13,7 +13,7 @@ module.exports = async function generate_dynamic_embed(values, color = 45698){
                     "color": color,
                     "timestamp": "2018-12-23T05:19:10.633Z",
                     "footer": {
-                        "text": "League of RPG Bot | @The3DSquare"
+                        "text": "League of RPG Bot | @CallMehMiles"
                     },
                     "fields": fields
                 }
